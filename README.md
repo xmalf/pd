@@ -16,6 +16,7 @@ Aplikasi statis tiga halaman: `index.html` untuk pengurus mencatat iuran, `rekap
 - Tambah banyak nama sekaligus: satu nama per baris. Nama yang sudah ada dilewati. Daftar awal belum diisi karena belum ada nama anggota yang diberikan.
 - Halaman rekap bisa dibuka tanpa login dan menampilkan nama, nominal, serta riwayat iuran. Halaman input memerlukan login pengurus.
 - Halaman pengeluaran dapat dibaca tanpa login; hanya pengurus yang dapat menambah atau menghapus catatan. Total pengeluaran dan sisa dana (total iuran dikurangi pengeluaran) juga tampil di rekap. Sisa dana bisa negatif jika pengeluaran lebih besar dari iuran.
+- Setiap daftar (pembayaran, rekap anggota, dan pengeluaran) memiliki pagination 10 data per halaman. Pencarian dan filter rekap mengembalikan tampilan ke halaman pertama.
 - Semua data disimpan di Supabase sehingga sama saat dibuka dari perangkat berbeda. Tombol reload browser memuat data terbaru.
 
 ## Berkas
