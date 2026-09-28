@@ -11,6 +11,7 @@
   let client, members = [], payments = [], expenses = [], contacts = [], session = null;
   const pages = { payments: 1, members: 1, expenses: 1, reminders: 1 };
   const pageSizes = { payments: 10, members: 10, expenses: 10, reminders: 10 };
+  let bulkQueue = [], bulkIndex = 0;
   function message(text, type='error') { const el=$('alert'); el.textContent=text; el.className='alert '+type; el.hidden=false; el.scrollIntoView({behavior:'smooth',block:'nearest'}); }
   function clearMessage() { $('alert').hidden=true; }
   function errorText(e) { if (e && e.code === '42501') return 'Akun ini belum didaftarkan sebagai pengurus. Periksa tabel iuran_admins.'; return e?.message || 'Terjadi kesalahan. Silakan coba lagi.'; }
@@ -123,11 +124,13 @@
     return `${greeting}\n\nKami dari panitia Halal Bihalal 1448 H Putera Delima ingin mengingatkan sisa iuran kegiatan. Dari target ${money(TARGET)}, pembayaran yang tercatat adalah ${money(total)}, sehingga sisanya ${money(TARGET-total)}. Mohon berkenan melunasinya jika sudah memungkinkan. Jika catatan ini belum sesuai, mohon kabari kami.\n\nTerima kasih.`;
   }
   function renderReminders(){
-    const totals=byMember(),due=members.filter(m=>(totals.get(m.id)||0)<TARGET);
-    $('reminder-count').textContent=due.length+' anggota perlu diingatkan';
+    const totals=byMember(),allDue=members.filter(m=>(totals.get(m.id)||0)<TARGET);
+    const search=$('reminder-search').value.trim().toLocaleLowerCase('id');
+    const due=allDue.filter(m=>m.name.toLocaleLowerCase('id').includes(search));
+    $('reminder-count').textContent=search ? due.length+' dari '+allDue.length+' anggota' : allDue.length+' anggota perlu diingatkan';
     const list=$('reminder-list');list.replaceChildren();
     const offset=paginate('reminder-pagination',due.length,'reminders',renderReminders);
-    if(!due.length){const empty=document.createElement('p');empty.className='empty';empty.textContent='Semua anggota sudah mencapai target iuran.';list.append(empty);return;}
+    if(!due.length){const empty=document.createElement('p');empty.className='empty';empty.textContent=search?'Tidak ada anggota yang cocok dengan pencarian.':'Semua anggota sudah mencapai target iuran.';list.append(empty);return;}
     for(const member of due.slice(offset,offset+pageSizes.reminders)){
       const total=totals.get(member.id)||0,phone=contacts.find(c=>c.member_id===member.id)?.phone;
       const row=document.createElement('div');row.className='recent-item reminder-item';
@@ -143,6 +146,22 @@
       }
       list.append(row);
     }
+  }
+  function renderBulk(){
+    const item=bulkQueue[bulkIndex],total=byMember().get(item.member.id)||0;
+    $('bulk-summary').textContent=`${bulkQueue.length} anggota dengan nomor WA siap diingatkan. ${members.filter(m=>(byMember().get(m.id)||0)<TARGET).length-bulkQueue.length} anggota belum memiliki nomor WA.`;
+    $('bulk-current').replaceChildren();
+    const heading=document.createElement('strong');heading.textContent=`${bulkIndex+1} dari ${bulkQueue.length} · ${item.member.name}`;
+    const detail=document.createElement('span');detail.textContent=`${total?'Sudah dibayar '+money(total):'Belum iuran'} · Sisa ${money(TARGET-total)} · WA: 0${item.phone.slice(2)}`;
+    $('bulk-current').append(heading,detail);
+    $('bulk-open').href='https://wa.me/'+item.phone+'?text='+encodeURIComponent(reminderText(item.member,total));
+    $('bulk-prev').disabled=bulkIndex===0;$('bulk-next').disabled=bulkIndex===bulkQueue.length-1;
+  }
+  function startBulk(){
+    const totals=byMember();
+    bulkQueue=members.filter(m=>(totals.get(m.id)||0)<TARGET).map(member=>({member,phone:contacts.find(c=>c.member_id===member.id)?.phone})).filter(item=>item.phone);
+    if(!bulkQueue.length){message('Belum ada anggota yang perlu diingatkan dan memiliki nomor WhatsApp.');return;}
+    bulkIndex=0;renderBulk();$('bulk-reminder-dialog').showModal();
   }
   function renderRecent(){
     $('recent-count').textContent=payments.length+' pembayaran';
@@ -288,13 +307,19 @@
   if(!window.supabase?.createClient){message('Pustaka Supabase gagal dimuat. Periksa koneksi internet dan muat ulang.');return;}
   client=window.supabase.createClient(cfg.supabaseUrl,cfg.supabasePublishableKey,{auth:{persistSession:true,autoRefreshToken:true}});
   if(page==='input'||page==='expense'){
-    if(page==='input'){$('paid-at').value=jakartaToday();$('member').addEventListener('change',updateMemberHint);$('contact-member').addEventListener('change',updateContactInput);$('payment-form').addEventListener('submit',addPayment);$('members-form').addEventListener('submit',addMembers);$('contact-form').addEventListener('submit',saveContact);}
+    if(page==='input'){$('paid-at').value=jakartaToday();$('member').addEventListener('change',updateMemberHint);$('contact-member').addEventListener('change',updateContactInput);$('reminder-search').addEventListener('input',()=>{pages.reminders=1;renderReminders();});$('payment-form').addEventListener('submit',addPayment);$('members-form').addEventListener('submit',addMembers);$('contact-form').addEventListener('submit',saveContact);
+      $('bulk-reminder-trigger').addEventListener('click',startBulk);
+      $('bulk-prev').addEventListener('click',()=>{bulkIndex--;renderBulk();});
+      $('bulk-next').addEventListener('click',()=>{bulkIndex++;renderBulk();});
+      $('bulk-close').addEventListener('click',()=>$('bulk-reminder-dialog').close());
+      $('bulk-reminder-dialog').addEventListener('click',event=>{if(event.target===$('bulk-reminder-dialog'))$('bulk-reminder-dialog').close();});
+    }
     else{$('expense-date').value=jakartaToday();$('expense-form').addEventListener('submit',addExpense);}
     $('login-form').addEventListener('submit',handleLogin);
     $('login-trigger').addEventListener('click',()=>{$('login-error').hidden=true;$('login-panel').showModal();$('email').focus();});
     $('close-login').addEventListener('click',()=>$('login-panel').close());
     $('login-panel').addEventListener('click',event=>{if(event.target===$('login-panel'))$('login-panel').close();});
-    $('logout').addEventListener('click',async()=>{await client.auth.signOut();session=null;contacts=[];if(page==='input')$('contact-phone').value='';showAuth();clearMessage();});
+    $('logout').addEventListener('click',async()=>{await client.auth.signOut();session=null;contacts=[];bulkQueue=[];if(page==='input'){$('contact-phone').value='';if($('bulk-reminder-dialog').open)$('bulk-reminder-dialog').close();}showAuth();clearMessage();});
     void initAuth();
   }else{$('search').addEventListener('input',()=>{pages.members=1;renderList();});$('filter').addEventListener('change',()=>{pages.members=1;renderList();});void load();}
 })();
