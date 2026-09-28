@@ -8,13 +8,20 @@
   const jakartaToday = () => new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Jakarta',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
   const configured = /^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/i.test(cfg.supabaseUrl || '') && !cfg.supabaseUrl.includes('PROJECT_ID') && cfg.supabasePublishableKey && !cfg.supabasePublishableKey.includes('PASTE_');
   const page = document.body.dataset.page;
-  let client, members = [], payments = [], expenses = [], session = null;
-  const pages = { payments: 1, members: 1, expenses: 1 };
-  const pageSizes = { payments: 10, members: 10, expenses: 10 };
+  let client, members = [], payments = [], expenses = [], contacts = [], session = null;
+  const pages = { payments: 1, members: 1, expenses: 1, reminders: 1 };
+  const pageSizes = { payments: 10, members: 10, expenses: 10, reminders: 10 };
   function message(text, type='error') { const el=$('alert'); el.textContent=text; el.className='alert '+type; el.hidden=false; el.scrollIntoView({behavior:'smooth',block:'nearest'}); }
   function clearMessage() { $('alert').hidden=true; }
   function errorText(e) { if (e && e.code === '42501') return 'Akun ini belum didaftarkan sebagai pengurus. Periksa tabel iuran_admins.'; return e?.message || 'Terjadi kesalahan. Silakan coba lagi.'; }
   function byMember() { const totals = new Map(); for(const p of payments) totals.set(p.member_id,(totals.get(p.member_id)||0)+Number(p.amount)); return totals; }
+  function normalizePhone(value){
+    let digits=String(value).replace(/\D/g,'');
+    if(digits.startsWith('0'))digits='62'+digits.slice(1);
+    else if(digits.startsWith('8'))digits='62'+digits;
+    if(!/^628\d{8,12}$/.test(digits))throw new Error('Nomor WA tidak valid. Gunakan nomor Indonesia, misalnya 081234567890.');
+    return digits;
+  }
   function paginate(id, total, key, rerender) {
     const el=$(id), size=pageSizes[key], max=Math.max(1,Math.ceil(total/size));
     pages[key]=Math.min(Math.max(1,pages[key]),max);
@@ -63,6 +70,7 @@
         fetchAll('iuran_payments','id,member_id,amount,paid_at,note,created_at','id'),
         fetchAll('iuran_expenses','id,title,category,amount,spent_at,note,created_at','id')
       ]);
+      contacts=page==='input'&&session ? await fetchAll('iuran_member_contacts','member_id,phone','member_id') : [];
       payments.sort((a,b)=> b.paid_at.localeCompare(a.paid_at) || b.id-a.id);
       expenses.sort((a,b)=> b.spent_at.localeCompare(a.spent_at) || b.id-a.id);
       clearMessage();
@@ -87,8 +95,14 @@
       sel.replaceChildren(new Option('Pilih anggota',''));
       for(const m of members) sel.add(new Option(m.name,String(m.id)));
       sel.value=members.some(m=>String(m.id)===previous)?previous:'';
+      const contactSelect=$('contact-member'), selected=contactSelect.value;
+      contactSelect.replaceChildren(new Option('Pilih anggota',''));
+      for(const m of members)contactSelect.add(new Option(m.name,String(m.id)));
+      contactSelect.value=members.some(m=>String(m.id)===selected)?selected:'';
+      updateContactInput();
       updateMemberHint();
       renderRecent();
+      if(session)renderReminders();
     } else if(page==='rekap') {
       $('paid-summary').textContent=paid+' / '+members.length;
       $('reached-summary').textContent=String(reached);
@@ -99,6 +113,37 @@
     }
   }
   function updateMemberHint(){const id=Number($('member').value),el=$('member-paid');el.hidden=!id;if(id)el.textContent='Sudah dibayar: '+money(byMember().get(id)||0);}
+  function updateContactInput(){
+    const id=Number($('contact-member').value),stored=contacts.find(c=>c.member_id===id)?.phone;
+    $('contact-phone').value=stored?'0'+stored.slice(2):'';
+  }
+  function reminderText(member,total){
+    const greeting=`Assalamu'alaikum ${member.name},`;
+    if(total===0)return `${greeting}\n\nKami dari panitia Halal Bihalal 1448 H Putera Delima ingin mengingatkan bahwa iuran kegiatan sebesar ${money(TARGET)} belum tercatat atas nama Anda. Mohon berkenan melakukan pembayaran jika sudah memungkinkan. Jika sudah membayar, mohon kabari kami agar catatan dapat diperiksa.\n\nTerima kasih.`;
+    return `${greeting}\n\nKami dari panitia Halal Bihalal 1448 H Putera Delima ingin mengingatkan sisa iuran kegiatan. Dari target ${money(TARGET)}, pembayaran yang tercatat adalah ${money(total)}, sehingga sisanya ${money(TARGET-total)}. Mohon berkenan melunasinya jika sudah memungkinkan. Jika catatan ini belum sesuai, mohon kabari kami.\n\nTerima kasih.`;
+  }
+  function renderReminders(){
+    const totals=byMember(),due=members.filter(m=>(totals.get(m.id)||0)<TARGET);
+    $('reminder-count').textContent=due.length+' anggota perlu diingatkan';
+    const list=$('reminder-list');list.replaceChildren();
+    const offset=paginate('reminder-pagination',due.length,'reminders',renderReminders);
+    if(!due.length){const empty=document.createElement('p');empty.className='empty';empty.textContent='Semua anggota sudah mencapai target iuran.';list.append(empty);return;}
+    for(const member of due.slice(offset,offset+pageSizes.reminders)){
+      const total=totals.get(member.id)||0,phone=contacts.find(c=>c.member_id===member.id)?.phone;
+      const row=document.createElement('div');row.className='recent-item reminder-item';
+      const left=document.createElement('div'),name=document.createElement('strong'),status=document.createElement('span');
+      name.textContent=member.name;
+      status.textContent=(total?'Sudah dibayar '+money(total):'Belum iuran')+' · Sisa '+money(TARGET-total)+(phone?' · WA: 0'+phone.slice(2):' · Nomor WA belum diisi');
+      left.append(name,status);
+      if(phone){
+        const link=document.createElement('a');link.className='wa-button';link.href='https://wa.me/'+phone+'?text='+encodeURIComponent(reminderText(member,total));link.target='_blank';link.rel='noopener noreferrer';link.textContent='Buka WhatsApp';link.setAttribute('aria-label','Siapkan pesan pengingat untuk '+member.name);row.append(left,link);
+      }else{
+        const button=document.createElement('button');button.type='button';button.className='missing-phone';button.textContent='Isi nomor';
+        button.addEventListener('click',()=>{$('contact-member').value=String(member.id);updateContactInput();$('contact-phone').focus();$('contact-form').scrollIntoView({behavior:'smooth',block:'center'});});row.append(left,button);
+      }
+      list.append(row);
+    }
+  }
   function renderRecent(){
     $('recent-count').textContent=payments.length+' pembayaran';
     const target=$('recent-list');target.replaceChildren();
@@ -197,12 +242,36 @@
   }
   async function addMembers(event){event.preventDefault();clearMessage();const btn=$('save-members');btn.disabled=true;
     try{
-      const raw=$('names').value.split(/[\n,;]+/).map(v=>v.trim().replace(/\s+/g,' ')).filter(Boolean);
-      if(!raw.length||raw.length>200||raw.some(v=>v.length>100))throw new Error('Masukkan 1–200 nama, maksimal 100 karakter per nama.');
+      const lines=$('names').value.split(/[\n,;]+/).map(v=>v.trim()).filter(Boolean);
+      if(!lines.length||lines.length>200)throw new Error('Masukkan 1–200 nama.');
+      const raw=lines.map(line=>{
+        const parts=line.split('|');if(parts.length>2)throw new Error('Gunakan format Nama | Nomor WA, satu anggota per baris.');
+        const name=parts[0].trim().replace(/\s+/g,' '),phone=parts[1]?.trim();
+        if(!name||name.length>100)throw new Error('Nama anggota wajib diisi, maksimal 100 karakter.');
+        return {name,phone:phone?normalizePhone(phone):null};
+      });
       const known=new Set(members.map(m=>m.name.toLocaleLowerCase('id')));
-      const names=raw.filter(v=>{const key=v.toLocaleLowerCase('id');if(known.has(key))return false;known.add(key);return true;});
-      if(names.length){const {error}=await client.from('iuran_members').insert(names.map(name=>({name})));if(error)throw error;}
+      const names=raw.filter(v=>{const key=v.name.toLocaleLowerCase('id');if(known.has(key))return false;known.add(key);return true;});
+      let created=[];
+      if(names.length){const {data,error}=await client.from('iuran_members').insert(names.map(({name})=>({name}))).select('id,name');if(error)throw error;created=data||[];}
+      const ids=new Map([...members,...created].map(m=>[m.name.toLocaleLowerCase('id'),m.id]));
+      const contactMap=new Map();
+      for(const entry of raw)if(entry.phone)contactMap.set(ids.get(entry.name.toLocaleLowerCase('id')),entry.phone);
+      if(contactMap.size){const rows=[...contactMap].map(([member_id,phone])=>({member_id,phone,updated_at:new Date().toISOString()}));
+        const {error}=await client.from('iuran_member_contacts').upsert(rows,{onConflict:'member_id'});
+        if(error){await load();throw new Error('Nama tersimpan, tetapi nomor WA gagal disimpan: '+errorText(error));}
+      }
       $('names').value='';await load();message(names.length+' anggota ditambahkan'+(raw.length-names.length?', '+(raw.length-names.length)+' nama sudah ada':'')+'.','success');
+    }catch(e){message(errorText(e));}finally{btn.disabled=false;}
+  }
+  async function saveContact(event){event.preventDefault();clearMessage();const btn=$('save-contact');btn.disabled=true;
+    try{
+      const member_id=Number($('contact-member').value);
+      if(!members.some(m=>m.id===member_id))throw new Error('Pilih anggota yang terdaftar.');
+      const phone=normalizePhone($('contact-phone').value);
+      const {error}=await client.from('iuran_member_contacts').upsert({member_id,phone,updated_at:new Date().toISOString()},{onConflict:'member_id'});
+      if(error)throw error;
+      await load();message('Nomor WhatsApp berhasil disimpan.','success');
     }catch(e){message(errorText(e));}finally{btn.disabled=false;}
   }
   async function addPayment(event){event.preventDefault();clearMessage();const btn=$('save-payment');btn.disabled=true;
@@ -219,13 +288,13 @@
   if(!window.supabase?.createClient){message('Pustaka Supabase gagal dimuat. Periksa koneksi internet dan muat ulang.');return;}
   client=window.supabase.createClient(cfg.supabaseUrl,cfg.supabasePublishableKey,{auth:{persistSession:true,autoRefreshToken:true}});
   if(page==='input'||page==='expense'){
-    if(page==='input'){$('paid-at').value=jakartaToday();$('member').addEventListener('change',updateMemberHint);$('payment-form').addEventListener('submit',addPayment);$('members-form').addEventListener('submit',addMembers);}
+    if(page==='input'){$('paid-at').value=jakartaToday();$('member').addEventListener('change',updateMemberHint);$('contact-member').addEventListener('change',updateContactInput);$('payment-form').addEventListener('submit',addPayment);$('members-form').addEventListener('submit',addMembers);$('contact-form').addEventListener('submit',saveContact);}
     else{$('expense-date').value=jakartaToday();$('expense-form').addEventListener('submit',addExpense);}
     $('login-form').addEventListener('submit',handleLogin);
     $('login-trigger').addEventListener('click',()=>{$('login-error').hidden=true;$('login-panel').showModal();$('email').focus();});
     $('close-login').addEventListener('click',()=>$('login-panel').close());
     $('login-panel').addEventListener('click',event=>{if(event.target===$('login-panel'))$('login-panel').close();});
-    $('logout').addEventListener('click',async()=>{await client.auth.signOut();session=null;showAuth();clearMessage();});
+    $('logout').addEventListener('click',async()=>{await client.auth.signOut();session=null;contacts=[];if(page==='input')$('contact-phone').value='';showAuth();clearMessage();});
     void initAuth();
   }else{$('search').addEventListener('input',()=>{pages.members=1;renderList();});$('filter').addEventListener('change',()=>{pages.members=1;renderList();});void load();}
 })();
