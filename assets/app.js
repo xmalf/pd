@@ -8,7 +8,7 @@
   const jakartaToday = () => new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Jakarta',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
   const configured = /^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/i.test(cfg.supabaseUrl || '') && !cfg.supabaseUrl.includes('PROJECT_ID') && cfg.supabasePublishableKey && !cfg.supabasePublishableKey.includes('PASTE_');
   const page = document.body.dataset.page;
-  let client, members = [], payments = [], session = null;
+  let client, members = [], payments = [], expenses = [], session = null;
   function message(text, type='error') { const el=$('alert'); el.textContent=text; el.className='alert '+type; el.hidden=false; el.scrollIntoView({behavior:'smooth',block:'nearest'}); }
   function clearMessage() { $('alert').hidden=true; }
   function errorText(e) { if (e && e.code === '42501') return 'Akun ini belum didaftarkan sebagai pengurus. Periksa tabel iuran_admins.'; return e?.message || 'Terjadi kesalahan. Silakan coba lagi.'; }
@@ -24,11 +24,13 @@
   }
   async function load() {
     try {
-      [members,payments]=await Promise.all([
+      [members,payments,expenses]=await Promise.all([
         fetchAll('iuran_members','id,name','name'),
-        fetchAll('iuran_payments','id,member_id,amount,paid_at,note,created_at','id')
+        fetchAll('iuran_payments','id,member_id,amount,paid_at,note,created_at','id'),
+        fetchAll('iuran_expenses','id,title,category,amount,spent_at,note,created_at','id')
       ]);
       payments.sort((a,b)=> b.paid_at.localeCompare(a.paid_at) || b.id-a.id);
+      expenses.sort((a,b)=> b.spent_at.localeCompare(a.spent_at) || b.id-a.id);
       clearMessage();
       render();
     } catch(e) { message('Gagal memuat data: '+errorText(e)); }
@@ -37,7 +39,10 @@
     const totals=byMember(), sum=payments.reduce((n,p)=>n+Number(p.amount),0);
     const paid=members.filter(m=>(totals.get(m.id)||0)>0).length;
     const reached=members.filter(m=>(totals.get(m.id)||0)>=TARGET).length;
-    $('total-summary').textContent=money(sum);
+    const spent=expenses.reduce((n,e)=>n+Number(e.amount),0);
+    if($('total-summary'))$('total-summary').textContent=money(sum);
+    if($('expense-summary'))$('expense-summary').textContent=money(spent);
+    if($('balance-summary'))$('balance-summary').textContent=money(sum-spent);
     if(page==='input') {
       $('paid-summary').textContent=paid+' anggota sudah iuran';
       $('reached-summary').textContent=reached+' anggota';
@@ -48,11 +53,13 @@
       sel.value=members.some(m=>String(m.id)===previous)?previous:'';
       updateMemberHint();
       renderRecent();
-    } else {
+    } else if(page==='rekap') {
       $('paid-summary').textContent=paid+' / '+members.length;
       $('reached-summary').textContent=String(reached);
       $('unpaid-summary').textContent=String(members.length-paid);
       renderList();
+    } else {
+      renderExpenses();
     }
   }
   function updateMemberHint(){const id=Number($('member').value),el=$('member-paid');el.hidden=!id;if(id)el.textContent='Sudah dibayar: '+money(byMember().get(id)||0);}
@@ -102,6 +109,41 @@
       btn.addEventListener('click',()=>{detail.hidden=!detail.hidden;btn.setAttribute('aria-expanded',String(!detail.hidden));arrow.textContent=detail.hidden?'⌄':'⌃';});row.append(btn,detail);list.append(row);
     });
   }
+  function renderExpenses(){
+    $('expense-count').textContent=expenses.length+' pengeluaran';
+    const list=$('expense-list');list.replaceChildren();
+    if(!expenses.length){const empty=document.createElement('p');empty.className='empty';empty.textContent='Belum ada pengeluaran yang dicatat.';list.append(empty);return;}
+    for(const expense of expenses){
+      const row=document.createElement('div');row.className='recent-item';
+      const left=document.createElement('div'),title=document.createElement('strong'),detail=document.createElement('span');
+      title.textContent=expense.title;
+      detail.textContent=expense.category+' · '+date(expense.spent_at)+(expense.note?' · '+expense.note:'');
+      left.append(title,detail);
+      const right=document.createElement('div');right.className='recent-right';const amount=document.createElement('b');amount.textContent=money(expense.amount);right.append(amount);
+      if(session){const del=document.createElement('button');del.type='button';del.textContent='Hapus';del.addEventListener('click',()=>removeExpense(expense.id));right.append(del);}
+      row.append(left,right);list.append(row);
+    }
+  }
+  async function removeExpense(id){
+    if(!confirm('Hapus pengeluaran ini? Sisa dana akan dihitung ulang.'))return;
+    const {data,error}=await client.from('iuran_expenses').delete().eq('id',id).select('id');
+    if(error){message(errorText(error));return;}
+    if(!data?.length){message('Pengeluaran tidak ditemukan atau akun tidak berwenang.');return;}
+    await load();message('Pengeluaran dihapus.','success');
+  }
+  async function addExpense(event){event.preventDefault();clearMessage();const btn=$('save-expense');btn.disabled=true;
+    try{
+      const title=$('expense-title').value.trim(),category=$('expense-category').value;
+      const amount=Number($('expense-amount').value),spent_at=$('expense-date').value,note=$('expense-note').value.trim();
+      if(!title||title.length>120)throw new Error('Keperluan wajib diisi, maksimal 120 karakter.');
+      if(!['Konsumsi','Tempat','Perlengkapan','Transportasi','Lainnya'].includes(category))throw new Error('Pilih kategori pengeluaran.');
+      if(!Number.isSafeInteger(amount)||amount<1||amount>1000000000)throw new Error('Nominal harus antara Rp1 dan Rp1 miliar.');
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(spent_at))throw new Error('Tanggal pengeluaran tidak valid.');
+      const {error}=await client.from('iuran_expenses').insert({title,category,amount,spent_at,note:note||null});if(error)throw error;
+      $('expense-title').value='';$('expense-category').value='';$('expense-amount').value='';$('expense-note').value='';
+      await load();message('Pengeluaran berhasil dicatat.','success');
+    }catch(e){message(errorText(e));}finally{btn.disabled=false;}
+  }
   async function handleLogin(event){event.preventDefault();clearMessage();const btn=event.submitter;btn.disabled=true;
     try{const {data,error}=await client.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});if(error)throw error;
       const {data:admin,error:adminError}=await client.from('iuran_admins').select('id').eq('id',data.user.id).maybeSingle();if(adminError)throw adminError;
@@ -109,10 +151,10 @@
       session=data.session;showAuth();await load();
     }catch(e){message(errorText(e));}finally{btn.disabled=false;}
   }
-  function showAuth(){const signed=!!session;$('login-panel').hidden=signed;$('admin-area').hidden=!signed;if(signed)$('admin-email').textContent='Pengurus: '+session.user.email;}
+  function showAuth(){const signed=!!session;$('login-panel').hidden=signed;$('admin-area').hidden=!signed;if(signed)$('admin-email').textContent='Pengurus: '+session.user.email;if(page==='expense')renderExpenses();}
   async function initAuth(){const {data}=await client.auth.getSession();session=data.session;
     if(session){const {data:admin,error}=await client.from('iuran_admins').select('id').eq('id',session.user.id).maybeSingle();if(error||!admin){await client.auth.signOut();session=null;}}
-    showAuth();if(session)await load();
+    showAuth();if(session||page==='expense')await load();
   }
   async function addMembers(event){event.preventDefault();clearMessage();const btn=$('save-members');btn.disabled=true;
     try{
@@ -134,12 +176,13 @@
       $('amount').value='';$('note').value='';await load();message('Pembayaran berhasil dicatat.','success');
     }catch(e){message(errorText(e));}finally{btn.disabled=false;}
   }
-  if(!configured){$('setup').hidden=false;if(page==='rekap'){$('count-label').textContent='Belum dikonfigurasi';$('member-list').replaceChildren();}return;}
+  if(!configured){$('setup').hidden=false;if(page==='rekap'){$('count-label').textContent='Belum dikonfigurasi';$('member-list').replaceChildren();}if(page==='expense'){$('expense-count').textContent='Belum dikonfigurasi';$('expense-list').replaceChildren();}return;}
   if(!window.supabase?.createClient){message('Pustaka Supabase gagal dimuat. Periksa koneksi internet dan muat ulang.');return;}
   client=window.supabase.createClient(cfg.supabaseUrl,cfg.supabasePublishableKey,{auth:{persistSession:true,autoRefreshToken:true}});
-  if(page==='input'){
-    $('paid-at').value=jakartaToday();$('member').addEventListener('change',updateMemberHint);
-    $('login-form').addEventListener('submit',handleLogin);$('payment-form').addEventListener('submit',addPayment);$('members-form').addEventListener('submit',addMembers);
+  if(page==='input'||page==='expense'){
+    if(page==='input'){$('paid-at').value=jakartaToday();$('member').addEventListener('change',updateMemberHint);$('payment-form').addEventListener('submit',addPayment);$('members-form').addEventListener('submit',addMembers);}
+    else{$('expense-date').value=jakartaToday();$('expense-form').addEventListener('submit',addExpense);}
+    $('login-form').addEventListener('submit',handleLogin);
     $('logout').addEventListener('click',async()=>{await client.auth.signOut();session=null;showAuth();clearMessage();});
     void initAuth();
   }else{$('search').addEventListener('input',renderList);$('filter').addEventListener('change',renderList);void load();}
