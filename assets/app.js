@@ -1,6 +1,7 @@
 (() => {
   'use strict';
   const TARGET = 250000;
+  const PAGE_SIZE = 10;
   const cfg = window.IURAN_CONFIG || {};
   const $ = (id) => document.getElementById(id);
   const money = (n) => new Intl.NumberFormat('id-ID', {style:'currency',currency:'IDR',maximumFractionDigits:0}).format(n || 0);
@@ -9,10 +10,32 @@
   const configured = /^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/i.test(cfg.supabaseUrl || '') && !cfg.supabaseUrl.includes('PROJECT_ID') && cfg.supabasePublishableKey && !cfg.supabasePublishableKey.includes('PASTE_');
   const page = document.body.dataset.page;
   let client, members = [], payments = [], expenses = [], session = null;
+  const pages = { payments: 1, members: 1, expenses: 1 };
   function message(text, type='error') { const el=$('alert'); el.textContent=text; el.className='alert '+type; el.hidden=false; el.scrollIntoView({behavior:'smooth',block:'nearest'}); }
   function clearMessage() { $('alert').hidden=true; }
   function errorText(e) { if (e && e.code === '42501') return 'Akun ini belum didaftarkan sebagai pengurus. Periksa tabel iuran_admins.'; return e?.message || 'Terjadi kesalahan. Silakan coba lagi.'; }
   function byMember() { const totals = new Map(); for(const p of payments) totals.set(p.member_id,(totals.get(p.member_id)||0)+Number(p.amount)); return totals; }
+  function paginate(id, total, key, rerender) {
+    const el=$(id), max=Math.max(1,Math.ceil(total/PAGE_SIZE));
+    pages[key]=Math.min(Math.max(1,pages[key]),max);
+    el.replaceChildren();el.hidden=total<=PAGE_SIZE;
+    if(total<=PAGE_SIZE)return (pages[key]-1)*PAGE_SIZE;
+    const info=document.createElement('span');info.className='page-info';
+    info.textContent=`${(pages[key]-1)*PAGE_SIZE+1}–${Math.min(pages[key]*PAGE_SIZE,total)} dari ${total}`;
+    const controls=document.createElement('div');controls.className='page-buttons';
+    function button(label,target,current=false) {
+      const b=document.createElement('button');b.type='button';b.textContent=label;b.disabled=target<1||target>max;
+      if(current){b.className='current';b.setAttribute('aria-current','page');}
+      b.addEventListener('click',()=>{pages[key]=target;rerender();el.parentElement.scrollIntoView({behavior:'smooth',block:'start'});});
+      controls.append(b);
+    }
+    button('‹',pages[key]-1);
+    const start=Math.max(1,Math.min(pages[key]-2,max-4)),end=Math.min(max,start+4);
+    for(let n=start;n<=end;n++)button(String(n),n,n===pages[key]);
+    button('›',pages[key]+1);
+    el.append(info,controls);
+    return (pages[key]-1)*PAGE_SIZE;
+  }
   async function fetchAll(table, select, order) {
     const result=[];
     for(let start=0; ; start+=1000) {
@@ -66,8 +89,9 @@
   function renderRecent(){
     $('recent-count').textContent=payments.length+' pembayaran';
     const target=$('recent-list');target.replaceChildren();
+    const offset=paginate('recent-pagination',payments.length,'payments',renderRecent);
     if(!payments.length){const p=document.createElement('p');p.className='empty';p.textContent='Belum ada pembayaran.';target.append(p);return;}
-    for(const p of payments.slice(0,15)){
+    for(const p of payments.slice(offset,offset+PAGE_SIZE)){
       const row=document.createElement('div');row.className='recent-item';
       const left=document.createElement('div'),name=document.createElement('strong'),detail=document.createElement('span');
       name.textContent=members.find(m=>m.id===p.member_id)?.name||'Anggota';
@@ -90,12 +114,13 @@
     });
     $('count-label').textContent=shown.length+' anggota ditampilkan';
     const list=$('member-list');list.replaceChildren();
+    const offset=paginate('member-pagination',shown.length,'members',renderList);
     if(!shown.length){const el=document.createElement('div');el.className='empty';el.textContent=members.length?'Tidak ada anggota sesuai pencarian.':'Belum ada anggota. Pengurus dapat menambahkannya di halaman Input Iuran.';list.append(el);return;}
-    shown.forEach((m,i)=>{
+    shown.slice(offset,offset+PAGE_SIZE).forEach((m,i)=>{
       const total=totals.get(m.id)||0, history=payments.filter(p=>p.member_id===m.id);
       const row=document.createElement('div');row.className='member-row';
       const btn=document.createElement('button');btn.type='button';btn.className='row-main';btn.setAttribute('aria-expanded','false');
-      const num=document.createElement('span');num.className='number';num.textContent=String(i+1);
+      const num=document.createElement('span');num.className='number';num.textContent=String(offset+i+1);
       const name=document.createElement('span');name.className='member-name';name.textContent=m.name;
       const small=document.createElement('small');small.textContent=history.length+' pembayaran';name.append(small);
       const badge=document.createElement('span');badge.className='badge '+(total===0?'unpaid':total<TARGET?'partial':'complete');badge.textContent=total===0?'Belum iuran':total<TARGET?'Belum mencapai target':total>TARGET?'Melebihi target':'Target tercapai';
@@ -112,8 +137,9 @@
   function renderExpenses(){
     $('expense-count').textContent=expenses.length+' pengeluaran';
     const list=$('expense-list');list.replaceChildren();
+    const offset=paginate('expense-pagination',expenses.length,'expenses',renderExpenses);
     if(!expenses.length){const empty=document.createElement('p');empty.className='empty';empty.textContent='Belum ada pengeluaran yang dicatat.';list.append(empty);return;}
-    for(const expense of expenses){
+    for(const expense of expenses.slice(offset,offset+PAGE_SIZE)){
       const row=document.createElement('div');row.className='recent-item';
       const left=document.createElement('div'),title=document.createElement('strong'),detail=document.createElement('span');
       title.textContent=expense.title;
@@ -185,5 +211,5 @@
     $('login-form').addEventListener('submit',handleLogin);
     $('logout').addEventListener('click',async()=>{await client.auth.signOut();session=null;showAuth();clearMessage();});
     void initAuth();
-  }else{$('search').addEventListener('input',renderList);$('filter').addEventListener('change',renderList);void load();}
+  }else{$('search').addEventListener('input',()=>{pages.members=1;renderList();});$('filter').addEventListener('change',()=>{pages.members=1;renderList();});void load();}
 })();
