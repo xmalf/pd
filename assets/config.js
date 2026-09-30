@@ -7,4 +7,8 @@ window.IURAN_CONFIG = {
   bankName: 'BNI',
   bankAccountNumber: '1982363345',
   bankAccountHolder: 'Ikmal Falahi'
+  // Letakkan foto tambahan di assets/galeri/, lalu tambahkan satu baris per foto.
+  galleryImages: [
+    {src: 'assets/hero-bg.jpg', alt: 'Kebersamaan anggota Putera Delima', caption: 'Bersama, kita membuat setiap pertemuan lebih berarti.'}
+  ]
 };
