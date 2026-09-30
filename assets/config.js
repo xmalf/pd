@@ -6,7 +6,7 @@ window.IURAN_CONFIG = {
   // Isi data rekening resmi pengurus sebelum dipublikasikan. Nomor ini terlihat oleh semua pengunjung.
   bankName: 'BNI',
   bankAccountNumber: '1982363345',
-  bankAccountHolder: 'Ikmal Falahi'
+  bankAccountHolder: 'Ikmal Falahi',
   // Letakkan foto tambahan di assets/galeri/, lalu tambahkan satu baris per foto.
   galleryImages: [
     {src: 'assets/hero-bg.jpg', alt: 'Kebersamaan anggota Putera Delima', caption: 'Bersama, kita membuat setiap pertemuan lebih berarti.'}
