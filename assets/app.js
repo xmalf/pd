@@ -313,6 +313,30 @@
       $('amount').value='';$('note').value='';await load();message('Pembayaran berhasil dicatat.','success');
     }catch(e){message(errorText(e));}finally{btn.disabled=false;}
   }
+  function setupGallery(){
+    const track=$('gallery-track');if(!track)return;
+    const entries=(Array.isArray(cfg.galleryImages)?cfg.galleryImages:[])
+      .filter(item=>item && typeof item.src==='string' && /^(assets\/|https:\/\/)/.test(item.src))
+      .slice(0,20);
+    const photos=entries.length?entries:[{src:'assets/hero-bg.jpg',alt:'Kebersamaan anggota Putera Delima',caption:'Bersama, kita membuat setiap pertemuan lebih berarti.'}];
+    const dots=$('gallery-dots'),prev=$('gallery-prev'),next=$('gallery-next'),viewport=$('gallery-viewport');
+    let current=0,timer;
+    photos.forEach((item,index)=>{
+      const figure=document.createElement('figure');figure.className='gallery-slide';figure.setAttribute('aria-roledescription','slide');figure.setAttribute('aria-label',`${index+1} dari ${photos.length}`);
+      const img=document.createElement('img');img.src=item.src;img.alt=String(item.alt||`Foto kegiatan Putera Delima ${index+1}`);img.loading=index?'lazy':'eager';img.decoding='async';
+      img.addEventListener('error',()=>{img.alt='Foto belum tersedia: '+img.alt;figure.classList.add('gallery-image-error');});
+      const caption=document.createElement('figcaption');caption.textContent=String(item.caption||'Kebersamaan Putera Delima');figure.append(img,caption);track.append(figure);
+      const dot=document.createElement('button');dot.type='button';dot.setAttribute('aria-label',`Lihat foto ${index+1}`);dot.addEventListener('click',()=>show(index));dots.append(dot);
+    });
+    function show(index){current=(index+photos.length)%photos.length;track.style.transform=`translateX(-${current*100}%)`;for(const [i,el] of [...track.children].entries())el.setAttribute('aria-hidden',String(i!==current));for(const [i,dot] of [...dots.children].entries())dot.setAttribute('aria-current',String(i===current));}
+    function stop(){clearInterval(timer);timer=null;}
+    function start(){stop();if(photos.length>1&&!document.hidden&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches)timer=setInterval(()=>show(current+1),5500);}
+    prev.addEventListener('click',()=>{show(current-1);start();});next.addEventListener('click',()=>{show(current+1);start();});
+    viewport.addEventListener('keydown',event=>{if(event.key==='ArrowLeft'||event.key==='ArrowRight'){event.preventDefault();show(current+(event.key==='ArrowLeft'?-1:1));start();}});
+    viewport.addEventListener('mouseenter',stop);viewport.addEventListener('mouseleave',start);viewport.addEventListener('focusin',stop);viewport.addEventListener('focusout',start);document.addEventListener('visibilitychange',start);
+    const multiple=photos.length>1;prev.hidden=next.hidden=dots.hidden=!multiple;show(0);start();
+  }
+  if(page==='input')setupGallery();
   if(page==='input'){
     const details=transferDetails();
     if(details){
