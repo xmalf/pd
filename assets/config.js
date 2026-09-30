@@ -9,6 +9,13 @@ window.IURAN_CONFIG = {
   bankAccountHolder: 'Ikmal Falahi',
   // Letakkan foto tambahan di assets/galeri/, lalu tambahkan satu baris per foto.
   galleryImages: [
-    {src: 'assets/hero-bg.jpg', alt: 'Kebersamaan anggota Putera Delima', caption: 'Bersama, kita membuat setiap pertemuan lebih berarti.'}
+    {src: 'assets/Kebersamaan 2023.jpeg', alt: 'Kebersamaan 2023', caption: 'Kegiatan rutin yang terus berkelanjutan.'},
+    {src: 'assets/Kekompakan tidak hanya di panggung.jpeg', alt: 'Kekompakan tidak cuma di panggung', caption: 'Kekompakan kita tunjukan kepada masyarakat'},
+    {src: 'assets/hero-bg.jpg', alt: 'Kebersamaan anggota Putera Delima', caption: 'Bersama, kita membuat setiap pertemuan lebih berarti.'},
+    {src: 'assets/hero-bg.jpg', alt: 'Kebersamaan anggota Putera Delima', caption: 'Bersama, kita membuat setiap pertemuan lebih berarti.'},
+    {src: 'assets/hero-bg.jpg', alt: 'Kebersamaan anggota Putera Delima', caption: 'Bersama, kita membuat setiap pertemuan lebih berarti.'},
+    {src: 'assets/hero-bg.jpg', alt: 'Kebersamaan anggota Putera Delima', caption: 'Bersama, kita membuat setiap pertemuan lebih berarti.'},
+    {src: 'assets/hero-bg.jpg', alt: 'Kebersamaan anggota Putera Delima', caption: 'Bersama, kita membuat setiap pertemuan lebih berarti.'},
+    {src: 'assets/hero-bg.jpg', alt: 'Kebersamaan anggota Putera Delima', caption: 'Bersama, kita membuat setiap pertemuan lebih berarti.'},
   ]
 };
