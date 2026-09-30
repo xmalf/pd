@@ -51,3 +51,6 @@ form label,.login-modal form label{font-size:13px}input,select,textarea{font-siz
 .bank-name{display:block;margin-top:16px;color:#73501e;font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
 .bank-number-row{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin:3px 0}.bank-number{color:#382611;font-size:clamp(22px,3vw,31px);letter-spacing:.035em;overflow-wrap:anywhere}.bank-copy{width:auto;min-height:38px;margin:0;padding:0 16px;font-size:12px}.bank-holder{display:block;color:#675235;font-size:13px}.bank-panel .bank-copy-status{margin-top:8px;color:#76511c}
 @media(max-width:600px){.bank-panel{padding:20px}.bank-number-row{align-items:stretch;flex-direction:column;gap:10px}.bank-copy{width:100%}}
+/* Nama penerima transfer dibuat menonjol, tetap selaras dengan tema gold. */
+.bank-holder{display:inline-block;margin-top:11px;padding:9px 14px;border:1px solid #dfc492;border-radius:9px;background:linear-gradient(110deg,#fff5df,#efd4a1);color:#3d280e;font-size:18px;font-weight:850;line-height:1.35;box-shadow:0 4px 12px #93602415}
+@media(max-width:600px){.bank-holder{font-size:16px}}

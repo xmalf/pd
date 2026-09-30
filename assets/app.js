@@ -118,10 +118,20 @@
     const id=Number($('contact-member').value),stored=contacts.find(c=>c.member_id===id)?.phone;
     $('contact-phone').value=stored?'0'+stored.slice(2):'';
   }
+  function transferDetails(){
+    const bank=String(cfg.bankName||'').trim();
+    const account=String(cfg.bankAccountNumber||'').trim();
+    const holder=String(cfg.bankAccountHolder||'').trim();
+    return bank && /^\d{5,25}$/.test(account) && holder ? {bank,account,holder} : null;
+  }
   function reminderText(member,total){
     const greeting=`Assalamu'alaikum ${member.name},`;
-    if(total===0)return `${greeting}\n\nKami dari panitia Halal Bihalal 1448 H Putera Delima ingin mengingatkan bahwa iuran kegiatan sebesar ${money(TARGET)} belum tercatat atas nama Anda. Mohon berkenan melakukan pembayaran jika sudah memungkinkan. Jika sudah membayar, mohon kabari kami agar catatan dapat diperiksa.\n\nTerima kasih.`;
-    return `${greeting}\n\nKami dari panitia Halal Bihalal 1448 H Putera Delima ingin mengingatkan sisa iuran kegiatan. Dari target ${money(TARGET)}, pembayaran yang tercatat adalah ${money(total)}, sehingga sisanya ${money(TARGET-total)}. Mohon berkenan melunasinya jika sudah memungkinkan. Jika catatan ini belum sesuai, mohon kabari kami.\n\nTerima kasih.`;
+    const main=total===0
+      ? `Kami dari panitia Halal Bihalal 1448 H Putera Delima ingin mengingatkan bahwa iuran kegiatan sebesar ${money(TARGET)} belum tercatat atas nama Anda. Mohon berkenan melakukan pembayaran jika sudah memungkinkan. Jika sudah membayar, mohon kabari kami agar catatan dapat diperiksa.`
+      : `Kami dari panitia Halal Bihalal 1448 H Putera Delima ingin mengingatkan sisa iuran kegiatan. Dari target ${money(TARGET)}, pembayaran yang tercatat adalah ${money(total)}, sehingga sisanya ${money(TARGET-total)}. Mohon berkenan melunasinya jika sudah memungkinkan. Jika catatan ini belum sesuai, mohon kabari kami.`;
+    const details=transferDetails();
+    const transfer=details ? `\n\nPembayaran melalui transfer:\n${details.bank} — ${details.account}\nAtas nama: ${details.holder}` : '';
+    return `${greeting}\n\n${main}${transfer}\n\nTerima kasih.`;
   }
   function renderReminders(){
     const totals=byMember(),allDue=members.filter(m=>(totals.get(m.id)||0)<TARGET);
@@ -304,10 +314,9 @@
     }catch(e){message(errorText(e));}finally{btn.disabled=false;}
   }
   if(page==='input'){
-    const bank=String(cfg.bankName||'').trim();
-    const account=String(cfg.bankAccountNumber||'').trim();
-    const holder=String(cfg.bankAccountHolder||'').trim();
-    if(bank && /^\d{5,25}$/.test(account) && holder){
+    const details=transferDetails();
+    if(details){
+      const {bank,account,holder}=details;
       $('bank-name').textContent=bank;
       $('bank-number').textContent=account;
       $('bank-holder').textContent='Atas nama '+holder;
