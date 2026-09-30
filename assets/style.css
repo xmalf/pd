@@ -45,3 +45,9 @@ form label,.login-modal form label{font-size:13px}input,select,textarea{font-siz
 .page-size-label,.page-info,.page-buttons button,.wa-button,.missing-phone{font-size:12px}.login-trigger{font-size:13px}.login-modal h3{font-size:20px}.login-modal p{font-size:13px}.guest-panel strong{font-size:30px}
 .contact-panel p,.reminder-panel p,.bulk-reminder-bar p,.reminder-search label,.bulk-modal p.bulk-note,.empty,footer{font-size:13px}.bulk-actions .button{font-size:12px}
 @media(max-width:600px){nav a{font-size:12px}.hero h1{font-size:36px}.hero p{font-size:14px}.section-title h2{font-size:25px}.stat strong,.finance-stats .stat strong,.stat.featured strong{font-size:21px}.target strong{font-size:19px}.guest-panel strong{font-size:28px}.bulk-actions .button{font-size:12px}}
+/* Rekening transfer untuk anggota. */
+.bank-panel{margin-top:20px;padding:22px 27px;border:1px solid #dcc59a;background:linear-gradient(120deg,#fffdfa,#faf0dc)}
+.bank-panel h3{margin:5px 0 5px;font-size:18px}.bank-panel p{margin:0;color:#655847;font-size:13px}.bank-unavailable{margin-top:14px!important;color:#765d36!important}
+.bank-name{display:block;margin-top:16px;color:#73501e;font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.bank-number-row{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin:3px 0}.bank-number{color:#382611;font-size:clamp(22px,3vw,31px);letter-spacing:.035em;overflow-wrap:anywhere}.bank-copy{width:auto;min-height:38px;margin:0;padding:0 16px;font-size:12px}.bank-holder{display:block;color:#675235;font-size:13px}.bank-panel .bank-copy-status{margin-top:8px;color:#76511c}
+@media(max-width:600px){.bank-panel{padding:20px}.bank-number-row{align-items:stretch;flex-direction:column;gap:10px}.bank-copy{width:100%}}

@@ -303,6 +303,28 @@
       $('amount').value='';$('note').value='';await load();message('Pembayaran berhasil dicatat.','success');
     }catch(e){message(errorText(e));}finally{btn.disabled=false;}
   }
+  if(page==='input'){
+    const bank=String(cfg.bankName||'').trim();
+    const account=String(cfg.bankAccountNumber||'').trim();
+    const holder=String(cfg.bankAccountHolder||'').trim();
+    if(bank && /^\d{5,25}$/.test(account) && holder){
+      $('bank-name').textContent=bank;
+      $('bank-number').textContent=account;
+      $('bank-holder').textContent='Atas nama '+holder;
+      $('bank-details').hidden=false;
+      $('bank-unavailable').hidden=true;
+      $('copy-bank').addEventListener('click',async()=>{
+        try{
+          if(navigator.clipboard?.writeText) await navigator.clipboard.writeText(account);
+          else {
+            const field=document.createElement('textarea');field.value=account;field.style.position='fixed';field.style.opacity='0';document.body.append(field);field.select();
+            const copied=document.execCommand('copy');field.remove();if(!copied)throw new Error('Salin manual');
+          }
+          $('copy-bank-status').textContent='Nomor rekening berhasil disalin.';
+        }catch(e){$('copy-bank-status').textContent='Gagal menyalin otomatis. Silakan salin nomor rekening secara manual.';}
+      });
+    }
+  }
   if(!configured){$('setup').hidden=false;if($('login-trigger'))$('login-trigger').hidden=true;if(page==='rekap'){$('count-label').textContent='Belum dikonfigurasi';$('member-list').replaceChildren();}if(page==='expense'){$('expense-count').textContent='Belum dikonfigurasi';$('expense-list').replaceChildren();}return;}
   if(!window.supabase?.createClient){message('Pustaka Supabase gagal dimuat. Periksa koneksi internet dan muat ulang.');return;}
   client=window.supabase.createClient(cfg.supabaseUrl,cfg.supabasePublishableKey,{auth:{persistSession:true,autoRefreshToken:true}});
