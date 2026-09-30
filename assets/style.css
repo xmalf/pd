@@ -71,3 +71,6 @@ body[data-page="input"] .content>.gallery-section{margin-top:0;margin-bottom:42p
 /* Tiga menu utama tetap sejajar di semua ukuran layar. */
 nav{display:flex;align-items:center;flex-wrap:nowrap}nav a{white-space:nowrap}
 @media(max-width:600px){nav{display:flex;grid-template-columns:none;gap:4px;width:100%}nav a{flex:1;min-width:0;padding:9px 4px;font-size:11px;text-align:center}}
+/* Caption slider lebih ringan dan ringkas, tetap terbaca di atas foto. */
+.gallery-slide figcaption{font-size:clamp(14px,1.55vw,18px);font-weight:500;line-height:1.45;max-width:620px;text-shadow:0 2px 8px #140e08,0 1px 3px #140e08}
+@media(max-width:600px){.gallery-slide figcaption{font-size:14px;font-weight:500;line-height:1.4}}
