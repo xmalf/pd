@@ -74,3 +74,9 @@ nav{display:flex;align-items:center;flex-wrap:nowrap}nav a{white-space:nowrap}
 /* Caption slider lebih ringan dan ringkas, tetap terbaca di atas foto. */
 .gallery-slide figcaption{font-size:clamp(14px,1.55vw,18px);font-weight:500;line-height:1.45;max-width:620px;text-shadow:0 2px 8px #140e08,0 1px 3px #140e08}
 @media(max-width:600px){.gallery-slide figcaption{font-size:14px;font-weight:500;line-height:1.4}}
+/* Kartu ringkasan Rekap Iuran dibuat lebih ringkas. */
+body[data-page="rekap"] .stats{gap:10px;margin-bottom:18px}
+body[data-page="rekap"] .stat{padding:15px 17px;gap:5px;border-radius:13px;box-shadow:0 5px 16px #76532a0b}
+body[data-page="rekap"] .stat span{font-size:12px;line-height:1.35}
+body[data-page="rekap"] .stat strong{font-size:21px;line-height:1.2;letter-spacing:-.035em}
+@media(max-width:600px){body[data-page="rekap"] .stats{gap:8px}body[data-page="rekap"] .stat{padding:12px 13px;gap:4px}body[data-page="rekap"] .stat span{font-size:11px}body[data-page="rekap"] .stat strong{font-size:18px}}
