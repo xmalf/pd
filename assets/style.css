@@ -80,3 +80,18 @@ body[data-page="rekap"] .stat{padding:15px 17px;gap:5px;border-radius:13px;box-s
 body[data-page="rekap"] .stat span{font-size:12px;line-height:1.35}
 body[data-page="rekap"] .stat strong{font-size:21px;line-height:1.2;letter-spacing:-.035em}
 @media(max-width:600px){body[data-page="rekap"] .stats{gap:8px}body[data-page="rekap"] .stat{padding:12px 13px;gap:4px}body[data-page="rekap"] .stat span{font-size:11px}body[data-page="rekap"] .stat strong{font-size:18px}}
+/* Video pembuka Rekap. */
+.intro-video-dialog{width:min(760px,calc(100vw - 24px));max-height:calc(100dvh - 24px);padding:20px;border:1px solid #dcc89d;border-radius:17px;background:#fffaf1;color:#342719;box-shadow:0 22px 75px #1d140b66;overflow:auto}
+.intro-video-dialog::backdrop{background:#1a120cbb;backdrop-filter:blur(4px)}
+.intro-video-head{display:flex;align-items:start;justify-content:space-between;gap:16px;margin-bottom:14px}
+.intro-video-head h2{font-size:21px;line-height:1.2;margin:3px 0 0}
+.intro-video-dialog video{display:block;width:100%;max-height:min(65dvh,480px);border-radius:11px;background:#23170e;object-fit:contain}
+.intro-video-dialog p{font-size:13px;line-height:1.5;color:#6c573b;margin:13px 0 0}
+.intro-video-dialog .button{margin-top:14px}
+.intro-video-admin{border-top:1px solid #e8d9bd;margin-top:30px;padding-top:26px}
+.intro-video-admin h3{margin:4px 0 6px}.intro-video-admin p{font-size:13px;color:#6b5a40}
+.intro-video-admin form{max-width:560px}.intro-video-admin input[type=file]{padding:8px;background:#fff;min-height:46px}
+.intro-video-admin .button{max-width:260px}.intro-current{margin-top:18px;max-width:560px}
+.intro-current video{display:block;width:100%;max-height:300px;border-radius:10px;background:#281c11}.intro-current .button{margin-top:12px}
+.intro-video-admin .gallery-status{margin-top:12px;font-weight:700}
+@media(max-width:600px){.intro-video-dialog{padding:15px}.intro-video-head h2{font-size:18px}.intro-video-admin .button{max-width:none}}

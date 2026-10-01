@@ -36,7 +36,7 @@
     try{
       const {data}=await client.auth.getSession();session=data.session;
       if(session&&!await isAdmin()){await client.auth.signOut();session=null;notice('Akun ini belum terdaftar sebagai pengurus.',true);}
-      showAuth();if(session)await refresh();
+      showAuth();if(session){await refresh();await refreshIntro();}
     }catch(e){notice('Gagal memeriksa akun: '+(e.message||'Terjadi kesalahan.'),true);}
   }
   $('login-trigger').addEventListener('click',()=>{$('login-error').hidden=true;$('login-panel').showModal();$('email').focus();});
@@ -47,10 +47,10 @@
     try{
       const {data,error}=await client.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});if(error)throw error;
       session=data.session;if(!await isAdmin()){await client.auth.signOut();session=null;throw new Error('Akun ini belum terdaftar sebagai pengurus.');}
-      $('password').value='';$('login-panel').close();showAuth();await refresh();
+      $('password').value='';$('login-panel').close();showAuth();await refresh();await refreshIntro();
     }catch(e){$('login-error').textContent=e.message||'Gagal masuk.';$('login-error').hidden=false;}finally{btn.disabled=false;}
   });
-  $('logout').addEventListener('click',async()=>{await client.auth.signOut();session=null;rows=[];$('gallery-message').hidden=true;showAuth();});
+  $('logout').addEventListener('click',async()=>{await client.auth.signOut();session=null;rows=[];$('gallery-message').hidden=true;$('intro-current').replaceChildren();$('intro-status').textContent='';showAuth();});
   $('gallery-form').addEventListener('submit',async event=>{
     event.preventDefault();const btn=$('gallery-upload');btn.disabled=true;
     try{
@@ -65,6 +65,44 @@
       if(rowError){await client.storage.from(bucket).remove([path]);throw rowError;}
       $('gallery-form').reset();await refresh();notice('Foto berhasil diunggah. Lihat slider di halaman utama.');
     }catch(e){notice('Gagal mengunggah: '+(e.message||'Terjadi kesalahan.'),true);}finally{btn.disabled=false;}
+  });
+  const videoBucket='iuran-video';
+  let activeVideo=null;
+  const videoStatus=text=>{$('intro-status').textContent=text;};
+  async function refreshIntro(){
+    const {data,error}=await client.from('iuran_intro_video').select('id,storage_path').eq('id',1).maybeSingle();
+    if(error){videoStatus('Fitur video belum siap. Jalankan supabase.sql terbaru di SQL Editor.');return;}
+    activeVideo=data;const container=$('intro-current');container.replaceChildren();
+    if(!data){const empty=document.createElement('p');empty.textContent='Belum ada video pembuka. Rekap akan terbuka seperti biasa.';container.append(empty);return;}
+    const preview=document.createElement('video');preview.controls=true;preview.preload='metadata';preview.playsInline=true;
+    preview.src=client.storage.from(videoBucket).getPublicUrl(data.storage_path).data.publicUrl;
+    const remove=document.createElement('button');remove.type='button';remove.className='button secondary';remove.textContent='Hapus video pembuka';
+    remove.addEventListener('click',async()=>{
+      if(!confirm('Hapus video pembuka dari halaman Rekap?'))return;
+      remove.disabled=true;
+      try{
+        const {error:rowError}=await client.from('iuran_intro_video').delete().eq('id',1);if(rowError)throw rowError;
+        const {error:storageError}=await client.storage.from(videoBucket).remove([data.storage_path]);
+        await refreshIntro();videoStatus(storageError?'Video dinonaktifkan, tetapi berkas lama belum terhapus dari Storage.':'Video pembuka berhasil dihapus.');
+      }catch(e){videoStatus('Gagal menghapus video: '+(e.message||'Terjadi kesalahan.'));remove.disabled=false;}
+    });
+    container.append(preview,remove);
+  }
+  $('intro-upload-form').addEventListener('submit',async event=>{
+    event.preventDefault();const button=$('intro-upload');button.disabled=true;
+    try{
+      if(!session)throw new Error('Masuk sebagai pengurus dahulu.');
+      const file=$('intro-file').files[0];
+      if(!file||!['video/mp4','video/webm'].includes(file.type)||file.size===0||file.size>50*1024*1024)throw new Error('Pilih video MP4 atau WebM berukuran maksimal 50 MB.');
+      const ext=file.type==='video/mp4'?'mp4':'webm',path=`${crypto.randomUUID()}.${ext}`;
+      videoStatus('Mengunggah video, mohon tunggu…');
+      const {error:uploadError}=await client.storage.from(videoBucket).upload(path,file,{contentType:file.type,upsert:false});if(uploadError)throw uploadError;
+      const oldPath=activeVideo?.storage_path;
+      const {error:rowError}=await client.from('iuran_intro_video').upsert({id:1,storage_path:path,updated_at:new Date().toISOString()},{onConflict:'id'});
+      if(rowError){await client.storage.from(videoBucket).remove([path]);throw rowError;}
+      $('intro-upload-form').reset();if(oldPath)await client.storage.from(videoBucket).remove([oldPath]);
+      await refreshIntro();videoStatus('Video pembuka aktif. Coba buka halaman Rekap.');
+    }catch(e){videoStatus('Gagal mengunggah video: '+(e.message||'Terjadi kesalahan.'));}finally{button.disabled=false;}
   });
   void start();
 })();
