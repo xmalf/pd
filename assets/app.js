@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const TARGET = 250000;
+  const TARGET = 300000;
   const cfg = window.IURAN_CONFIG || {};
   const $ = (id) => document.getElementById(id);
   const money = (n) => new Intl.NumberFormat('id-ID', {style:'currency',currency:'IDR',maximumFractionDigits:0}).format(n || 0);
