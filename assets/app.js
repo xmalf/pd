@@ -1,6 +1,7 @@
 (() => {
   'use strict';
-  const TARGET = 300000;
+  let TARGET = 250000;
+  let targetReady=Promise.resolve();
   const cfg = window.IURAN_CONFIG || {};
   const $ = (id) => document.getElementById(id);
   const money = (n) => new Intl.NumberFormat('id-ID', {style:'currency',currency:'IDR',maximumFractionDigits:0}).format(n || 0);
@@ -66,6 +67,7 @@
   }
   async function load() {
     try {
+      await targetReady;
       [members,payments,expenses]=await Promise.all([
         fetchAll('iuran_members','id,name','name'),
         fetchAll('iuran_payments','id,member_id,amount,paid_at,note,created_at','id'),
@@ -373,6 +375,12 @@
   if(!configured){$('setup').hidden=false;if($('login-trigger'))$('login-trigger').hidden=true;if(page==='rekap'){$('count-label').textContent='Belum dikonfigurasi';$('member-list').replaceChildren();}if(page==='expense'){$('expense-count').textContent='Belum dikonfigurasi';$('expense-list').replaceChildren();}return;}
   if(!window.supabase?.createClient){message('Pustaka Supabase gagal dimuat. Periksa koneksi internet dan muat ulang.');return;}
   client=window.supabase.createClient(cfg.supabaseUrl,cfg.supabasePublishableKey,{auth:{persistSession:true,autoRefreshToken:true}});
+  targetReady=(async()=>{
+    const {data,error}=await client.rpc('iuran_poll_status');
+    if(!error && data?.final_choice==='B')TARGET=300000;
+    if($('target-amount'))$('target-amount').textContent=money(TARGET);
+    if($('reminder-target'))$('reminder-target').textContent=money(TARGET);
+  })().catch(()=>{});
   if(page==='input')void loadGallery();
   if(page==='input'||page==='expense'){
     if(page==='input'){$('paid-at').value=jakartaToday();$('member').addEventListener('change',updateMemberHint);$('contact-member').addEventListener('change',updateContactInput);$('reminder-search').addEventListener('input',()=>{pages.reminders=1;renderReminders();});$('payment-form').addEventListener('submit',addPayment);$('members-form').addEventListener('submit',addMembers);$('contact-form').addEventListener('submit',saveContact);
