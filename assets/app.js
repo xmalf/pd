@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  let TARGET = 250000;
+  let TARGET = 500000;
   let targetReady=Promise.resolve();
   const cfg = window.IURAN_CONFIG || {};
   const $ = (id) => document.getElementById(id);
