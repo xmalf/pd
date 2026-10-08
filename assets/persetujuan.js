@@ -6,7 +6,7 @@
   if(!configured||!window.supabase?.createClient){alert('Koneksi Supabase belum siap. Periksa assets/config.js.');$('poll-login-trigger').hidden=true;return;}
   const client=window.supabase.createClient(cfg.supabaseUrl,cfg.supabasePublishableKey,{auth:{persistSession:true,autoRefreshToken:true}});
   let session=null,status=null,activeCode=null;
-  const optionLabel=choice=>choice==='A'?'Opsi A · Ello Nada · Rp250.000':'Opsi B · Palnet · Rp300.000';
+  const optionLabel=choice=>choice==='A'?'Opsi A · Ello Nada · Rp300.000':'Opsi B · Palnet · Rp500.000';
   async function copyText(value){if(navigator.clipboard?.writeText){await navigator.clipboard.writeText(value);return;}const input=document.createElement('textarea');input.value=value;input.style.position='fixed';input.style.opacity='0';document.body.append(input);input.select();const ok=document.execCommand('copy');input.remove();if(!ok)throw new Error('Gagal menyalin otomatis.');}
   async function fetchRows(table,columns,order){const result=[];for(let offset=0;;offset+=1000){const {data,error}=await client.from(table).select(columns).order(order).range(offset,offset+999);if(error)throw error;result.push(...data);if(data.length<1000)return result;}}
   function drawStatus(){
